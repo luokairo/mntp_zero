@@ -1,0 +1,4 @@
+# Llama模型依赖
+torch>=2.0.0
+flash-attn>=2.0.0  # 可选，用于加速注意力计算
+transformers>=4.30.0  # 可选，用于tokenizer等工具
