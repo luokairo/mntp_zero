@@ -13,8 +13,8 @@ dropout_add_layer_norm = fused_mlp_func = memory_efficient_attention = (
     flash_attn_func
 ) = None
 
-from xformers.ops import memory_efficient_attention
-import xformers
+# from xformers.ops import memory_efficient_attention
+# import xformers
 # 尝试导入flash_attn，如果不可用则使用标准注意力
 try:
     from flash_attn import flash_attn_func, flash_attn_varlen_kvpacked_func
@@ -693,13 +693,13 @@ class LlamaAdaLNSelfAttn(nn.Module):
             context_token=context_token
         )
 
-        self.fnn = LlamaMLP(
+        self.ffn = LlamaMLP(
             in_features=embed_dim,
             hidden_features=int((embed_dim * mlp_ratio * 2) / 3 + 255) // 256 * 256,
             out_features=embed_dim,
         )
 
-        self.ln_wo_grad = norm_layer(embed_dim, elementwise_affine=False)
+        self.ln_wo_grad = norm_layer(embed_dim)
         self.shared_aln = shared_aln
         if not self.disable_aln:
             lin = nn.Linear(cond_dim, 6 * embed_dim)
@@ -711,6 +711,7 @@ class LlamaAdaLNSelfAttn(nn.Module):
                 )
 
         self.use_cross_attn = use_cross_attn
+        self.fused_add_norm_fn = None
         if self.use_cross_attn:
             self.cross_attn = MultiHeadCrossAttention(embed_dim, num_heads)
         else:
@@ -787,7 +788,7 @@ class AdaLNBeforeHead(nn.Module):
     def __init__(self, C, D, norm_layer):  # C: embed_dim, D: cond_dim
         super().__init__()
         self.C, self.D = C, D
-        self.ln_wo_grad = norm_layer(C, elementwise_affine=False)
+        self.ln_wo_grad = norm_layer(C)
         self.ada_lin = nn.Sequential(nn.SiLU(inplace=False), nn.Linear(D, 2 * C))
 
     def forward(self, x_BLC: torch.Tensor, cond_BD: torch.Tensor):

@@ -52,7 +52,6 @@ class VAR(nn.Module):
         for i, pn in enumerate(self.patch_nums):
             self.begin_ends.append((cur, cur+pn ** 2))
             cur += pn ** 2
-            num_scales += 1
         
         self.num_stages_minus_1 = len(self.patch_nums) - 1
         self.rng = torch.Generator(device=dist.get_device())
@@ -301,6 +300,9 @@ class VAR(nn.Module):
             label_B = torch.where(torch.rand(B, device=label_B.device) < self.cond_drop_rate, self.num_classes, label_B)
             sos = cond_BD = self.class_emb(label_B)
             sos = sos.unsqueeze(1).expand(B, self.first_l, -1)
+            
+            x_BLC_wo_first_l = self.word_embed(x_BLCv_wo_first_l.float())
+            x_BLC_wo_first_l = self.norm_x(x_BLC_wo_first_l)
             context_cache_list = self.get_context_cache_wo_first_l(x_BLC_wo_first_l)
             cond_BLD_wo_first_l = self.fuse_context_and_cond_BD_wo_first_l(context_cache_list, cond_BD)
             cond_BLD_wo_first_l = self.norm_cond(cond_BLD_wo_first_l)
@@ -374,7 +376,7 @@ class VAR(nn.Module):
         for block_idx, sab in enumerate(self.blocks):
             sab: LlamaAdaLNSelfAttn
             sab.attn.proj.weight.data.div_(math.sqrt(2 * depth))
-            sab.ffn.fc2.weight.data.div_(math.sqrt(2 * depth))
+            sab.ffn.down_proj.weight.data.div_(math.sqrt(2 * depth))
             if hasattr(sab.ffn, 'fcg') and sab.ffn.fcg is not None:
                 nn.init.ones_(sab.ffn.fcg.bias)
                 nn.init.trunc_normal_(sab.ffn.fcg.weight, std=1e-5)
